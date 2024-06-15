@@ -1,0 +1,131 @@
+To ensure the delete button appears instantly after a comment is posted, you will need to update your front-end code to reflect the addition of new comments dynamically without requiring a page refresh. Here's how you can achieve this:
+
+1. **Update the Front-End (JavaScript/HTML) Code:** 
+   Use JavaScript to make an asynchronous request (AJAX) to post new comments, and subsequently update the DOM to display the new comment along with its delete button.
+
+2. **Update Your Back-End Code (PHP):**
+   Ensure the comment posting endpoint returns the necessary HTML for the comment and delete button, which can be directly injected into the DOM.
+
+Assuming you have an existing HTML form and a place where comments are displayed, here’s an updated version of your code:
+
+### HTML and JavaScript:
+1. **HTML Form Example:**
+   ```html
+   <form id="commentForm">
+       <textarea id="commentText" required></textarea>
+       <button type="submit">Post Comment</button>
+   </form>
+   <div id="commentsContainer"></div>
+   ```
+
+2. **JavaScript to Handle Form Submission and Comment Deletion:**
+   ```html
+   <script>
+       document.getElementById('commentForm').addEventListener('submit', function(e) {
+           e.preventDefault();
+           
+           const commentText = document.getElementById('commentText').value;
+           
+           fetch('post_comment.php', {
+               method: 'POST',
+               headers: {
+                   'Content-Type': 'application/x-www-form-urlencoded',
+               },
+               body: `commentText=${encodeURIComponent(commentText)}`,
+           })
+           .then(response => response.text())
+           .then(data => {
+               document.getElementById('commentText').value = '';
+               document.getElementById('commentsContainer').insertAdjacentHTML('beforeend', data);
+           })
+           .catch(error => console.error('Error:', error));
+       });
+
+       function deleteComment(commentId) {
+           fetch('delete_comment.php', {
+               method: 'POST',
+               headers: {
+                   'Content-Type': 'application/x-www-form-urlencoded',
+               },
+               body: `comment_id=${commentId}`,
+           })
+           .then(response => response.text())
+           .then(data => {
+               if (data === 'Comment deleted successfully') {
+                   document.getElementById(`comment-${commentId}`).remove();
+               } else {
+                   alert(data);
+               }
+           })
+           .catch(error => console.error('Error:', error));
+       }
+   </script>
+   ```
+
+### PHP Server-side Code:
+1. **Post Comment (post_comment.php):**
+   ```php
+   <?php
+   session_start();
+   include 'db.php';
+
+   if (!isset($_SESSION['user_id'])) {
+       echo "Session expired or user ID not found. Please log in again.";
+       exit();
+   }
+
+   if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+       $comment_text = $_POST['commentText'] ?? '';
+
+       if (!empty($comment_text)) {
+           $stmt = $conn->prepare("INSERT INTO comments (user_id, comment_text) VALUES (?, ?)");
+           $stmt->bind_param("is", $_SESSION['user_id'], $comment_text);
+           if ($stmt->execute()) {
+               $comment_id = $stmt->insert_id;
+               echo "<div id='comment-$comment_id'>$comment_text <button onclick='deleteComment($comment_id)'>Delete</button></div>";
+           } else {
+               echo "Error posting comment";
+           }
+           $stmt->close();
+       } else {
+           echo "Comment text cannot be empty";
+       }
+   } else {
+       echo "Invalid request method";
+   }
+   ?>
+   ```
+
+2. **Delete Comment (delete_comment.php):**
+   ```php
+   <?php
+   session_start();
+   include 'db.php';
+
+   if (!isset($_SESSION['user_id'])) {
+       echo "Session expired or user ID not found. Please log in again.";
+       exit();
+   }
+
+   if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+       $comment_id = isset($_POST['comment_id']) ? (int)$_POST['comment_id'] : 0;
+
+       if ($comment_id > 0) {
+           $stmt = $conn->prepare("DELETE FROM comments WHERE id = ? AND user_id = ?");
+           $stmt->bind_param("ii", $comment_id, $_SESSION['user_id']);
+           if ($stmt->execute()) {
+               echo "Comment deleted successfully";
+           } else {
+               echo "Error deleting comment";
+           }
+           $stmt->close();
+       } else {
+           echo "Invalid comment ID";
+       }
+   } else {
+       echo "Invalid request method";
+   }
+   ?>
+   ```
+
+With these changes, submitting a comment will immediately display it along with a delete button, which can be used to remove the comment via AJAX without refreshing the page.
