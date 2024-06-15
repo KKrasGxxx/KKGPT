@@ -1,0 +1,69 @@
+To show the delete button instantly without refreshing the page, you need to add the delete button to the comment HTML when the comment is added. Here is the modified script that includes adding the delete button when the comment is appended:
+
+```javascript
+$(document).ready(function() {
+    // Handling the comment form submission
+    $('#comment-form').on('submit', function(e) {
+        e.preventDefault();
+        var form = $(this);
+
+        $.ajax({
+            type: 'POST',
+            url: 'comment.php',
+            data: form.serialize(),
+            success: function(response) {
+                // Assuming response contains the HTML of the newly added comment
+                // Append the new comment along with a delete button
+                var newComment = $(response);
+                newComment.append('<form class="delete-form" method="post" action="delete_post.php"><button type="submit">Delete</button></form>');
+                form.closest('.post').find('.comments').append(newComment);
+                form.find('input[name="comment_text"]').val('');
+            },
+            error: function(xhr, status, error) {
+                console.log('Error adding comment:', xhr.responseText);
+                alert('Error adding comment');
+            }
+        });
+    });
+
+    // Handling the delete form submission
+    $(document).on('submit', '.delete-form', function(e) {
+        e.preventDefault();
+        var form = $(this);
+
+        $.ajax({
+            type: 'POST',
+            url: 'delete_post.php',
+            data: form.serialize(),
+            success: function(response) {
+                if (response === 'Post deleted successfully') {
+                    form.closest('.post').remove();
+                } else {
+                    alert(response);
+                }
+            },
+            error: function(xhr, status, error) {
+                console.log('Error deleting post:', xhr.responseText);
+                alert('Error deleting post');
+            }
+        });
+    });
+
+    // Show image in fullscreen
+    $(document).on('click', '.post-image img', function() {
+        var src = $(this).attr('src');
+        $('#fullscreen-img').attr('src', src);
+        $('.fullscreen-overlay').fadeIn();
+    });
+
+    // Set image for fullscreen when profile picture or cover photo is clicked
+    $(document).on('click', '#profile-picture, #cover-photo', function() {
+        var src = $(this).attr('src');
+        $('#fullscreen-img').attr('src', src);
+    });
+});
+```
+
+1. Added a class `delete-form` and a delete button to the new comment HTML response.
+2. Changed the comment form selector from `form` to `#comment-form`.
+3. Ensured the script runs after the document is loaded using `$(document).ready`.
